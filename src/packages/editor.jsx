@@ -1,14 +1,17 @@
 import { defineComponent, ref, computed, inject } from 'vue'
 import EditorBlock from './editorBlock'
 import './editor.scss'
+import { useMenuDragger } from '@/utils/useMenuDragger'
 export default defineComponent(
-    (props) => {
-        let currentComponent = null
+    (props, ctx) => {
         const containerRef = ref(null)
         const config = inject('config')
         const data = computed({
             get() {
                 return props.modelValue
+            },
+            set(newV) {
+                ctx.emit('update:modelValue', newV)
             }
         })
         const containerStyles = computed(() => {
@@ -17,39 +20,21 @@ export default defineComponent(
                 height: data.value.container.height + 'px'
             }
         })
-        const evDragStart = (e, component) => {
-            /* 
-                dragenter 进入元素中 添加一个移动标识
-                dragover 在目标元素经过 必须要阻止默认行为 否则不能出发drop
-                dragleave 离开元素的时候 需要增加一个禁用标识
-                drop 松手的时候 根据拖拽的组件 添加一个组件
-            */
-            currentComponent = component
-            console.log(e, 'evDragStart', component)
-            console.log(containerRef.value, 'containerRef')
-            containerRef.value.addEventListener('dragenter', evDragEnter)
-            containerRef.value.addEventListener('dragover', evDragOver)
-            containerRef.value.addEventListener('dragleave', evDragLeave)
-            containerRef.value.addEventListener('drop', evDrop)
+        // 1.实现菜单拖拽功能
+        const { evDragStart, evDragEnd } = useMenuDragger(data, containerRef)
+        // 2.实现获取焦点
+        const evClearFocus = () => {
+            data.value.blocks.forEach((block) => (block.focus = false))
         }
-        const evDragEnter = (e) => {
-            console.log(e, 'evDragEnter')
-            e.dataTransfer.dropEffect = 'move'
-        }
-        const evDragOver = (e) => {
+        const evMouseDown = (e, block) => {
+            console.log(e, 'e', block, 'block')
             e.preventDefault()
-            console.log(e, 'evDragOver')
+            e.stopPropagation()
+            // 清除其他元素的focus
+            evClearFocus()
+            block.focus = !block.focus
         }
-        const evDragLeave = (e) => {
-            console.log(e, 'evDragLeave')
-            e.dataTransfer.dropEffect = 'none'
-        }
-        // 松手
-        const evDrop = (e) => {
-            console.log(currentComponent,'currentComponent')
-            console.log(e, 'evDrop')
-            currentComponent = null
-        }
+        // 3.实现拖拽多个元素的功能
         const render = () => {
             return (
                 <div className="editor">
@@ -63,7 +48,8 @@ export default defineComponent(
                                     forceFallback={true}
                                     onDragstart={(e) =>
                                         evDragStart(e, component)
-                                    }>
+                                    }
+                                    onDragEnd={(e) => evDragEnd(e)}>
                                     <span>{component.label}</span>
                                     <div>{component.preview()}</div>
                                 </div>
@@ -80,7 +66,10 @@ export default defineComponent(
                                 {data.value.blocks.map((block) => {
                                     return (
                                         <EditorBlock
-                                            block={block}></EditorBlock>
+                                            block={block}
+                                            onMousedown={(e) =>
+                                                evMouseDown(e, block)
+                                            }></EditorBlock>
                                     )
                                 })}
                             </div>
@@ -98,6 +87,7 @@ export default defineComponent(
                 type: Object,
                 default: () => ({})
             }
-        }
+        },
+        emits: ['update:modelValue']
     }
 )
