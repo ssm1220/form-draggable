@@ -16,6 +16,8 @@ export default defineComponent(
         const blockRef = ref(null)
         onMounted(() => {
             console.log(blockRef.value, 'blockRef')
+            // offsetWidth: 元素宽度
+            // offsetHeight: 元素高度
             const { offsetWidth, offsetHeight } = blockRef.value
             // 说明是拖拽放手的时候渲染的，其他默认渲染到页面上的内容不需要剧中
             if (props.block.alignCenter) {
@@ -30,7 +32,9 @@ export default defineComponent(
             const renderComponent = component.render()
             return (
                 <div
-                    className={`editor-block ${props.block.focus ? 'editor-block-focus' : ''}`}
+                    className={`editor-block ${
+                        props.block.focus ? 'editor-block-focus' : ''
+                    }`}
                     ref={blockRef}
                     style={blockStyles.value}>
                     {renderComponent}

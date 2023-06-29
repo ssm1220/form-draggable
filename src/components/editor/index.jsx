@@ -1,11 +1,14 @@
 import { defineComponent, ref, computed, inject } from 'vue'
-import EditorBlock from './editorBlock'
-import './editor.scss'
-import { useMenuDragger } from '@/utils/useMenuDragger'
+import { EditorBlock } from '@/components/index'
+import { useMenuDragger, useFocus, useBlockDragger } from '@/hooks/index'
+import './index.scss'
 export default defineComponent(
     (props, ctx) => {
+        // 拖拽元素生成区域的Ref
         const containerRef = ref(null)
+        // 左侧侧边栏的配置项
         const config = inject('config')
+        // 定义在data.json的editor相关配置项
         const data = computed({
             get() {
                 return props.modelValue
@@ -14,6 +17,7 @@ export default defineComponent(
                 ctx.emit('update:modelValue', newV)
             }
         })
+        // 拖拽区域的样式，在data.json配置
         const containerStyles = computed(() => {
             return {
                 width: data.value.container.width + 'px',
@@ -23,17 +27,16 @@ export default defineComponent(
         // 1.实现菜单拖拽功能
         const { evDragStart, evDragEnd } = useMenuDragger(data, containerRef)
         // 2.实现获取焦点
-        const evClearFocus = () => {
-            data.value.blocks.forEach((block) => (block.focus = false))
-        }
-        const evMouseDown = (e, block) => {
-            console.log(e, 'e', block, 'block')
-            e.preventDefault()
-            e.stopPropagation()
-            // 清除其他元素的focus
-            evClearFocus()
-            block.focus = !block.focus
-        }
+        // 清除其他元素的focus
+        const { evMouseDownFather, evMouseDownItem, focusData } = useFocus(
+            data,
+            (e) => {
+                // console.log(focusData.value.focusArr,'center--mouseDown')
+                evAfterMouseDownItem(e)
+            }
+        )
+
+        const { evAfterMouseDownItem } = useBlockDragger(focusData)
         // 3.实现拖拽多个元素的功能
         const render = () => {
             return (
@@ -61,6 +64,7 @@ export default defineComponent(
                         <div className="editor-container">
                             <div
                                 ref={containerRef}
+                                onMousedown={evMouseDownFather}
                                 className="editor-container-canvas"
                                 style={containerStyles.value}>
                                 {data.value.blocks.map((block) => {
@@ -68,7 +72,7 @@ export default defineComponent(
                                         <EditorBlock
                                             block={block}
                                             onMousedown={(e) =>
-                                                evMouseDown(e, block)
+                                                evMouseDownItem(e, block)
                                             }></EditorBlock>
                                     )
                                 })}
